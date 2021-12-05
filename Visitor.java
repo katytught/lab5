@@ -87,6 +87,9 @@ public class Visitor extends calcBaseVisitor<Void>{
     @Override public Void visitStmt(calcParser.StmtContext ctx) {
         if(ctx.lval()!=null){
             String a=visitLval(ctx.lval());
+            if(getnumber(a)!=null){
+                System.exit(-1);
+            }
             String s=visitExp(ctx.exp());
             VarList list=VarList.getInstance();
             if(alllist.size()>0){
@@ -100,20 +103,35 @@ public class Visitor extends calcBaseVisitor<Void>{
             else if(list.getVar(ctx.lval().getText()).isIsconst()&&list.getVar(ctx.lval().getText()).isInit()){
                 System.exit(-1);
             }
+            else{
+                for(int i=0;i<global.size();i++){
+                    if(global.get(i).getName().equals(ctx.lval().getText())&&global.get(i).isIsconst()){
+                        System.exit(-1);
+                    }
+                }
+            }
             if(alllist.size()>0){
                 for(int i=alllist.size()-1;i>=0;i--){
-                    boolean bk=false;
+//                    boolean bk=false;
                     ArrayList<Var> tlist = alllist.get(i);
                     for(int j=0;j<tlist.size();j++){
                         if(tlist.get(j).getName().equals(ctx.lval().getText())){
                             tlist.get(j).setInit(true);
                             results+="store i32 "+s+", i32* "+ tlist.get(j).getNum()+"\n";
-                            bk=true;
-                            break;
+                            return null;
+//                            bk=true;
+//                            break;
                         }
                     }
-                    if(bk){
-                        break;
+//                    if(bk){
+//                        break;
+//                    }
+                }
+                for(int i=0;i<global.size();i++){
+                    if(global.get(i).getName().equals(ctx.lval().getText())){
+                        global.get(i).setInit(true);
+                        results+="store i32 "+s+", i32* "+ global.get(i).getNum()+"\n";
+                        return null;
                     }
                 }
             }
@@ -791,7 +809,7 @@ public class Visitor extends calcBaseVisitor<Void>{
                     reg.setType("i32");
                     Reglist.getInstance().add(reg);
                     Num++;
-                    return var.getNum();
+                    return reg.getName();
                 }
             }
         }
