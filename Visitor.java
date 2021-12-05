@@ -94,13 +94,22 @@ public class Visitor extends calcBaseVisitor<Void>{
                 System.exit(-1);
             }
             if(alllist.size()>0){
-                ArrayList<Var> tlist = alllist.get(alllist.size()-1);
-                for(int i=0;i<tlist.size();i++){
-                    if(tlist.get(i).getName().equals(ctx.lval().getText())){
-                        tlist.get(i).setInit(true);
-                        results+="store i32 "+s+", i32* "+ tlist.get(i).getNum()+"\n";
+                for(int i=alllist.size()-1;i>=0;i--){
+                    ArrayList<Var> tlist = alllist.get(i);
+                    for(int j=0;j<tlist.size();j++){
+                        if(tlist.get(j).getName().equals(ctx.lval().getText())){
+                            tlist.get(j).setInit(true);
+                            results+="store i32 "+s+", i32* "+ tlist.get(j).getNum()+"\n";
+                        }
                     }
                 }
+//                ArrayList<Var> tlist = alllist.get(alllist.size()-1);
+//                for(int i=0;i<tlist.size();i++){
+//                    if(tlist.get(i).getName().equals(ctx.lval().getText())){
+//                        tlist.get(i).setInit(true);
+//                        results+="store i32 "+s+", i32* "+ tlist.get(i).getNum()+"\n";
+//                    }
+//                }
             }
             else {
                 list.getVar(ctx.lval().getText()).setInit(true);
