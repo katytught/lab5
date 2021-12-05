@@ -668,6 +668,23 @@ public class Visitor extends calcBaseVisitor<Void>{
     public Void visitVarDef(calcParser.VarDefContext ctx) {
         switch (ctx.children.size()){
             case 1:
+                if(isglobal){
+                    String ident1=ctx.Idigit().getText();
+                    for(int i=0;i<global.size();i++){
+                        if(global.get(i).getName().equals(ident1)){
+                            System.exit(-1);
+                        }
+                    }
+                    Var var1=new Var();
+                    var1.setName(ident1);
+                    var1.setIsconst(false);
+                    var1.setNum("@"+ident1);
+                    var1.setValue(0);
+                    global.add(var1);
+                    var1.setInit(true);
+                    results += "@"+ident1+" = dso_local global i32 " + var1.getValue()+"\n";
+                    return null;
+                }
                 results+="%"+Num+" = alloca i32\n";
                 String ident=ctx.Idigit().getText();
                 if(alllist.size()>0){
@@ -712,6 +729,7 @@ public class Visitor extends calcBaseVisitor<Void>{
                     var1.setName(ident1);
                     var1.setIsconst(false);
                     var1.setNum("@"+ident1);
+                    var1.setValue(0);
                     global.add(var1);
                     String temp=visitInitVal(ctx.initVal());
                     var1.setValue(getnumber(temp));
