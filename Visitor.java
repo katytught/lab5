@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -6,8 +7,11 @@ public class Visitor extends calcBaseVisitor<Void>{
     public String results="";
     public int Num=1;
     public boolean isconst=false;
+    public boolean isglobal=false;
     public int T=0;
+    public ArrayList<ArrayList> allconstlist = new ArrayList<ArrayList>();
     public ArrayList<ArrayList> alllist=new ArrayList<ArrayList>();
+    public ArrayList<Var> global = new ArrayList<Var>();
     static Integer getnumber(String s){
         int res = 0;
         s = s.toLowerCase(Locale.ROOT);
@@ -48,9 +52,9 @@ public class Visitor extends calcBaseVisitor<Void>{
     }
     @Override public Void visitCompUnit(calcParser.CompUnitContext ctx) {
         for(int i=0;i<ctx.decl().size();i++){
-            isconst = true;
+            isglobal = true;
             visit(ctx.decl(i));
-            isconst = false;
+            isglobal = false;
         }
         visit(ctx.funcDef());
         return null;
@@ -70,11 +74,14 @@ public class Visitor extends calcBaseVisitor<Void>{
     }
     @Override public Void visitBlock(calcParser.BlockContext ctx) {
         ArrayList<Var> newlist = new ArrayList<Var>();
+        ArrayList<Var> conlist = new ArrayList<Var>();
         alllist.add(newlist);
+        allconstlist.add(conlist);
         for(int i=0;i<ctx.blockItem().size();i++){
             visit(ctx.blockItem(i));
         }
         alllist.remove(newlist);
+        allconstlist.remove(conlist);
         return null;
     }
     @Override public Void visitStmt(calcParser.StmtContext ctx) {
@@ -187,6 +194,41 @@ public class Visitor extends calcBaseVisitor<Void>{
             case 1:
                 return visitMulexp(ctx.mulexp());
             case 3:
+                if(isglobal){
+                    String left=visitAddexp(ctx.addexp());
+                    String right=visitMulexp(ctx.mulexp());
+                    int a=0;
+                    int b=0;
+                    for(int i=0;i<global.size();i++){
+                        if(global.get(i).getName().equals(left)&&!global.get(i).isIsconst()){
+                            System.exit(-1);
+                        }
+                        if(global.get(i).getName().equals(left)){
+                            a=global.get(i).getValue();
+                            break;
+                        }
+                        if(i==global.size()-1){
+                            a=getnumber(left);
+                        }
+                    }
+                    for(int i=0;i<global.size();i++){
+                        if(global.get(i).getName().equals(right)&&!global.get(i).isIsconst()){
+                            System.exit(-1);
+                        }
+                        if(global.get(i).getName().equals(right)){
+                            b=global.get(i).getValue();
+                            break;
+                        }
+                        if(i==global.size()-1){
+                            b=getnumber(right);
+                        }
+                    }
+                    if(ctx.Addfunc().getText().equals("+")){
+                        return String.valueOf(a+b);
+                    }else {
+                        return String.valueOf(a-b);
+                    }
+                }
                 String left=visitAddexp(ctx.addexp());
                 String right=visitMulexp(ctx.mulexp());
                 if(Objects.equals(ctx.Addfunc().getText(), "+")){
@@ -211,7 +253,6 @@ public class Visitor extends calcBaseVisitor<Void>{
                         Num++;
                     }
                     results+="%"+Num+" = add i32 "+left+","+right+"\n";
-
                     Register reg = new Register();
                     reg.setName("%"+Num);
                     reg.setNum(Num);
@@ -262,6 +303,43 @@ public class Visitor extends calcBaseVisitor<Void>{
             case 1:
                 return visitUnaryexp(ctx.unaryexp());
             case 3:
+                if(isglobal){
+                    String left=visitMulexp(ctx.mulexp());
+                    String right=visitUnaryexp(ctx.unaryexp());
+                    int a=0;
+                    int b=0;
+                    for(int i=0;i<global.size();i++){
+                        if(global.get(i).getName().equals(left)&&!global.get(i).isIsconst()){
+                            System.exit(-1);
+                        }
+                        if(global.get(i).getName().equals(left)){
+                            a=global.get(i).getValue();
+                            break;
+                        }
+                        if(i==global.size()-1){
+                            a=getnumber(left);
+                        }
+                    }
+                    for(int i=0;i<global.size();i++){
+                        if(global.get(i).getName().equals(right)&&!global.get(i).isIsconst()){
+                            System.exit(-1);
+                        }
+                        if(global.get(i).getName().equals(right)){
+                            b=global.get(i).getValue();
+                            break;
+                        }
+                        if(i==global.size()-1){
+                            b=getnumber(right);
+                        }
+                    }
+                    if(ctx.Mulfunc().getText().equals("*")){
+                        return String.valueOf(a*b);
+                    }else if(ctx.Mulfunc().getText().equals("/")){
+                        return String.valueOf(a/b);
+                    }else {
+                        return String.valueOf(a%b);
+                    }
+                }
                 String left=visitMulexp(ctx.mulexp());
                 String right=visitUnaryexp(ctx.unaryexp());
                 if(ctx.Mulfunc().getText().equals("*")){
@@ -495,6 +573,23 @@ public class Visitor extends calcBaseVisitor<Void>{
 
     @Override
     public Void visitConstDef(calcParser.ConstDefContext ctx) {
+        if(isglobal){
+            String ident=ctx.Idigit().getText();
+            for(int i=0;i<global.size();i++){
+                if(global.get(i).getName().equals(ident)){
+                    System.exit(-1);
+                }
+            }
+            Var var=new Var();
+            var.setName(ident);
+            var.setNum("@"+ident);
+            var.setIsconst(true);
+            global.add(var);
+            String temp=visitConstInitVal(ctx.constInitVal());
+            var.setValue(getnumber(temp));
+            var.setInit(true);
+            return null;
+        }
         results+="%"+Num+" = alloca i32\n";
         String ident=ctx.Idigit().getText();
         if(alllist.size()>0){
@@ -528,8 +623,8 @@ public class Visitor extends calcBaseVisitor<Void>{
         Num++;
         String temp=visitConstInitVal(ctx.constInitVal());
         String loc= var.getNum();
-//        String loc=list.getVar(ctx.Idigit().getText()).getNum();
         results+="store i32 "+temp+", i32* " +loc+"\n";
+        allconstlist.get(allconstlist.size()-1).add(var);
         return null;
     }
 
@@ -588,6 +683,24 @@ public class Visitor extends calcBaseVisitor<Void>{
                 Num++;
                 break;
             case 3:
+                if(isglobal){
+                    String ident1=ctx.Idigit().getText();
+                    for(int i=0;i<global.size();i++){
+                        if(global.get(i).getName().equals(ident1)){
+                            System.exit(-1);
+                        }
+                    }
+                    Var var1=new Var();
+                    var1.setName(ident1);
+                    var1.setIsconst(false);
+                    var1.setNum("@"+ident1);
+                    global.add(var1);
+                    String temp=visitInitVal(ctx.initVal());
+                    var1.setValue(getnumber(temp));
+                    var1.setInit(true);
+                    results += "@"+ident1+" = dso_local global i32 " + getnumber(temp)+"\n";
+                    return null;
+                }
                 results+="%"+Num+" = alloca i32\n";
                 ident=ctx.Idigit().getText();
                 if(alllist.size()>0){
@@ -659,6 +772,27 @@ public class Visitor extends calcBaseVisitor<Void>{
             }
             if(bk){
                 break;
+            }
+        }
+        if(var==null){
+            for(int i=0;i<global.size();i++){
+                if(global.get(i).getName().equals(ctx.getText())){
+                    var = global.get(i);
+                    if(isglobal&&!global.get(i).isIsconst()){
+                        System.exit(-1);
+                    }
+                    if(global.get(i).isIsconst()){
+                        return String.valueOf(var.getValue());
+                    }
+                    results+="%"+Num+" = load i32, i32* "+var.getNum()+"\n";
+                    Register reg = new Register();
+                    reg.setName("%"+Num);
+                    reg.setNum(Num);
+                    reg.setType("i32");
+                    Reglist.getInstance().add(reg);
+                    Num++;
+                    return var.getNum();
+                }
             }
         }
         if(!var.isIsconst()&&isconst){
